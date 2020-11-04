@@ -18,6 +18,8 @@
               <el-input ref="merSearch" v-model="requestForm.merSearch" placeholder="请输入商户名称/商户号" />
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row>
           <el-col :span="2">
             <el-form-item>
               <el-button type="primary" @click.native.prevent="onSubmit">提 交</el-button>
@@ -37,8 +39,8 @@
         style="width: 100%"
       >
         <el-table-column
-          prop="no"
-          label="商户号"
+          prop="orderNo"
+          label="申请编号"
         />
         <el-table-column
           prop="merchantName"
@@ -49,16 +51,12 @@
           label="商户类型"
         />
         <el-table-column
-          prop="contactName"
-          label="联系人"
+          prop="merchantNo"
+          label="商户编号"
         />
         <el-table-column
-          prop="mobileNo"
-          label="手机号"
-        />
-        <el-table-column
-          prop="stateName"
-          label="状态"
+          prop="creatorName"
+          label="进件员工"
         />
         <el-table-column
           fixed="right"
@@ -66,9 +64,34 @@
           width="120"
         >
           <template slot-scope="scope">
-            <el-button type="text" size="small" @click="viewDetail(scope.row)">详情</el-button>
-            <el-button type="text" size="small" @click="subMerUserList(scope.row)">员工帐户</el-button>
-            <el-button v-if="scope.row.state === 'P'" type="text" size="small" @click="selectChannel(scope.row)">开通渠道</el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="merDetail(scope.row)"
+            >
+              商户详情
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="agreementDetail(scope.row)"
+            >
+              协议
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="toApprove(scope.row)"
+            >
+              批准
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="toReject(scope.row)"
+            >
+              拒绝
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -84,69 +107,59 @@
           @current-change="handleCurrentChange"
         />
       </div>
+      <el-dialog
+        title="提示"
+        :visible.sync="dialogVisible"
+        width="30%"
+        :before-close="handleClose"
+      >
+        <p>请输入批注:</p>
+        <el-input
+          v-model="remark"
+          type="textarea"
+          :rows="2"
+          placeholder="请输入批注"
+        />
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="cancelReject">取 消</el-button>
+          <el-button type="primary" @click="doReject">确 定</el-button>
+        </span>
+      </el-dialog>
     </div>
-    <el-dialog title="选择渠道" :visible.sync="dialogFormVisible">
-      <el-form :model="form">
-        <el-form-item label="渠道名称">
-          <el-select v-model="form.channelCode" placeholder="请选择活动区域">
-            <el-option
-              v-for="(item, index) in channelList"
-              :key="index"
-              :label="item.channelName"
-              :value="item.channelCode"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisible = false">取 消</el-button>
-        <el-button type="primary" @click="channelProvision">确 定</el-button>
-      </div>
-    </el-dialog>
-    <el-dialog title="去绑卡" :visible.sync="dialogBindCardVisible">
-      渠道已经完成个人基础资料审核，是否现在去绑卡？
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogBindCardVisible = false">取 消</el-button>
-        <el-button type="primary" @click="gotoBindCard">确 定</el-button>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import { myMerchants } from '@/api/merchant'
-import { channelProvision } from '@/api/channel'
+import { getFRAsByQuery, approve, reject } from '@/api/merchant'
+import { getSubUsers } from '@/api/user'
 import { PAGE_SIZE } from '@/constants/constants'
-import { getAllPayChannel3rds } from '@/api/channel'
 
 export default {
-  name: 'MyMerchants',
+  nane: 'MyFRAsReview',
   data() {
     return {
       merchantTypeNames: ['', '个人', '个体', '企业'],
       stateList: {
-        'N': '未生效',
-        'P': '审批通过',
-        'A': '已开通服务',
-        'B': '冻结'
+        'I': '初始',
+        'W': '等待审核',
+        'P': '审核通过',
+        'F': '不通过'
       },
+      dialogVisible: false, // 控制对话框显示
+      remark: '', // 记录批注
+      curOrderNo: '', // 当前批注的申请单号
       tableData: [],
+      createUsers: [],
       total: 0, // 总页数
       requestForm: {
+        createUsers: [],
         startDate: '',
         endDate: '',
-        state: '',
+        state: 'W',
         merSearch: '',
         pageSize: PAGE_SIZE,
         page: 1
-      },
-      dialogFormVisible: false,
-      channelList: [],
-      form: {
-        row: null,
-        channelCode: ''
-      },
-      dialogBindCardVisible: false
+      }
     }
   },
   activated() {
@@ -156,7 +169,6 @@ export default {
       this.total = 0
       this.requestForm.startDate = ''
       this.requestForm.endDate = ''
-      this.requestForm.state = ''
       this.requestForm.merSearch = ''
       this.requestForm.page = 1
       this.$route.meta.refresh = false
@@ -175,10 +187,13 @@ export default {
     this.$bus.$off('closeSelectedTag', this.closeEventHandler)
   },
   mounted() {
-    this.query(this.requestForm)
-    getAllPayChannel3rds().then(res => {
+    getSubUsers(this.$store.getters.id).then(res => {
       if (res.code === '0000') {
-        this.channelList = res.data
+        this.createUsers = res.data
+        res.data.forEach(element => {
+          this.requestForm.createUsers.push(element.id)
+        })
+        this.query(this.requestForm)
       } else {
         this.$message({
           message: res.msg,
@@ -199,19 +214,14 @@ export default {
       this.requestForm.page = indexPage
       this.query(this.requestForm)
     },
-    onSubmit() {
-      console.log('onsubmit')
-      this.requestForm.page = 1
-      this.total = 0
-      this.query(this.requestForm)
-    },
     query(data) {
-      myMerchants(data).then(res => {
+      getFRAsByQuery(data).then(res => {
         if (res.code === '0000') {
           this.tableData = res.data.list
           this.tableData.forEach(element => {
             element.merchantTypeName = this.merchantTypeNames[element.merchantType]
             element.stateName = this.stateList[element.state]
+            element.creatorName = this.createUsers.find(item => item.id === element.createUser).name
           })
           if (res.data.count != null) {
             this.total = res.data.count
@@ -222,54 +232,34 @@ export default {
         console.log(err)
       })
     },
-    viewDetail(row) {
-      console.log('row', row)
-      this.$router.push({ name: 'MerchantDetail', params: { merchantNo: row.no }})
+    onSubmit() {
+      console.log('onsubmit')
+      this.requestForm.page = 1
+      this.total = 0
+      this.query(this.requestForm)
     },
-    subMerUserList(row) {
-      console.log('row', row)
-      this.$router.push({ name: 'SubMerUserList', params: { merchantNo: row.no }})
+    merDetail(row) {
+      console.log('agreementDetail')
+      this.$router.push({ name: 'MerchantDetail', params: { merchantNo: row.merchantNo }})
     },
-    closeEventHandler(event) {
-      // console.log('closeEventHandler', event)
-      if (event.name === 'MyMerchants') {
-        console.log('MyMerchants closed')
-        this.$route.meta.refresh = true
-      }
+    agreementDetail(row) {
+      console.log('agreementDetail')
     },
-    selectChannel(row) {
-      this.form.row = row
-      this.dialogFormVisible = true
-    },
-    channelProvision() {
-      console.log('channelProvision, merchantNo: ', this.form.row.no, ', merchantType: ', this.form.row.merchantType, ', channelCode: ', this.form.channelCode)
-      channelProvision(this.form.row.no, this.form.channelCode).then(res => {
+    toApprove(row) {
+      console.log('approve')
+      approve(row.orderNo).then(res => {
         if (res.code === '0000') {
-          if (this.form.row.merchantType === 1) {
-            this.dialogFormVisible = false
-            if (res.data.state === 2) {
-              console.log('channelProvision, open dialog')
-              this.dialogBindCardVisible = true
-            } else {
-              this.$message({
-                message: res.msg,
-                type: 'warning'
-              })
-            }
-          } else {
-            this.dialogFormVisible = false
-            this.$message({
-              message: '资料已经上传，等待渠道审核',
-              type: 'success'
-            })
-          }
+          this.$message({
+            message: res.data,
+            type: 'success'
+          })
         } else {
-          console.log('channelProvision, res.code', res.code)
           this.$message({
             message: res.msg,
             type: 'error'
           })
         }
+        this.query(this.requestForm)
       }).catch(err => {
         this.$message({
           message: err,
@@ -277,20 +267,101 @@ export default {
         })
       })
     },
-    gotoBindCard() {
-      this.dialogBindCardVisible = false
-      this.$router.push({ name: 'BindCard', params: { merchantNo: this.form.row.no, channelCode: this.form.channelCode, merchantType: 1, idName: this.form.row.idName, mobileNo: this.form.row.mobileNo }})
+    toReject(row) {
+      console.log('reject')
+      this.curOrderNo = row.orderNo
+      this.remark = row.reviewRemark
+      this.dialogVisible = true
+    },
+    cancelReject() {
+      console.log('cancelReject')
+      this.dialogVisible = false
+      this.curOrderNo = ''
+      this.remark = ''
+    },
+    doReject() {
+      console.log('doReject')
+      var d = new Date() // 根据时间戳生成的时间对象
+      var str = (d.getFullYear()) + '-' +
+           (d.getMonth() + 1) + '-' +
+           (d.getDate()) + ' ' +
+           (d.getHours()) + ':' +
+           (d.getMinutes()) + ':' +
+           (d.getSeconds())
+      this.remark = this.remark + '\n【' + str + '】'
+      console.log('this.remark', this.remark)
+      reject(this.curOrderNo, this.remark).then(res => {
+        if (res.code === '0000') {
+          this.$message({
+            message: res.data,
+            type: 'success'
+          })
+          this.dialogVisible = false
+          this.curOrderNo = ''
+          this.remark = ''
+          this.query(this.requestForm)
+        } else {
+          this.$message({
+            message: res.msg,
+            type: 'error'
+          })
+        }
+      }).catch(err => {
+        console.log(err)
+        return '程序异常'
+      })
+    },
+    handleClose() {
+      console.log('handleClose')
+      this.dialogVisible = false
+    },
+    closeEventHandler(event) {
+      // console.log('closeEventHandler', event)
+      if (event.name === 'MyFRAsReview') {
+        console.log('MyFRAs closed')
+        this.$route.meta.refresh = true
+      }
     }
   }
 }
 </script>
 
+<!--style>
+  .el-table .warning-row {
+    background: oldlace;
+  }
+
+  .el-table .success-row {
+    background: #f0f9eb;
+  }
+</style-->
 <style lang="scss" scoped>
 .app-container {
   ::v-deep .requestForm {
     position: relative;
     margin-left: 0%;
     width: 100%;
+  }
+
+  ::v-deep .buttons-block {
+  margin-left: 10px;
+  margin-top: 10px;
+  width: 30%;
+  margin-bottom: 0px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
+  }
+  ::v-deep .onePerLine{
+    width: 80%;
+  }
+  ::v-deep .twoPerLineContent{
+    width: 33%;
+  }
+  ::v-deep .sixPerLineContent{
+    width: 16.7%;
+  }
+  ::v-deep .customWidth{
+    width: 90%;
   }
   ::v-deep .pagination[data-v-7ce5917a]{
     width:100%;

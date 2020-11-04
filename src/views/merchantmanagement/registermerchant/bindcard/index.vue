@@ -78,7 +78,7 @@
 <script>
 import { validMobile } from '@/utils/validate'
 import { getBanksByMerchantType } from '@/api/bank'
-import { bindMerchantCardOrder, bindMerchantCardSubmit } from '@/api/merchant'
+import { bindMerchantCardOrder, bindMerchantCardSubmit } from '@/api/channel'
 
 export default {
   name: 'BindCard',
@@ -92,7 +92,7 @@ export default {
       default: () => ''
     },
     merchantType: {
-      type: String,
+      type: Number,
       default: () => 1
     },
     idName: {

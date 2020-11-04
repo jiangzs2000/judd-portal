@@ -26,12 +26,14 @@ const mgrMerchantRouter = {
           path: 'registerperson',
           component: () => import('@/views/merchantmanagement/registermerchant/registerperson'),
           name: 'RegisterPerson',
+          props: true,
           meta: { title: '进件个人' }
         },
         {
           path: 'registerindividual',
           component: () => import('@/views/merchantmanagement/registermerchant/registerindividual'),
           name: 'RegisterIndividual',
+          props: true,
           // redirect: '/nested/menu1/menu1-2/menu1-2-1',
           meta: { title: '进件个体' }
         },
@@ -47,6 +49,7 @@ const mgrMerchantRouter = {
           path: 'registercompany',
           component: () => import('@/views/merchantmanagement/registermerchant/registercompany'),
           name: 'RegisterCompany',
+          props: true,
           meta: { title: '进件企业' }
         },
         {
@@ -79,18 +82,18 @@ const mgrMerchantRouter = {
       path: 'managemerchant',
       component: () => import('@/views/merchantmanagement/managemerchant/index'),
       name: 'ManageMerchant',
-      redirect: '/merchantmanagement/managemerchant/myregistrationapplications',
+      redirect: '/merchantmanagement/managemerchant/myCRAs',
       meta: {
         title: '管理商户',
         roles: ['plat-manager', 'platmer-manager', 'plat-salesman', 'platmer-salesman'] // you can set roles in root nav
       },
       children: [
         {
-          path: 'myregistrationapplications',
-          component: () => import('@/views/merchantmanagement/managemerchant/myregistrationapplications'),
-          name: 'MyRegistrationApplications',
+          path: 'myFRAs',
+          component: () => import('@/views/merchantmanagement/managemerchant/myFRAs'),
+          name: 'MyFRAs',
           meta: {
-            title: '我的进件',
+            title: '商户进件',
             refresh: true // 需要刷新
           }
         },
@@ -109,6 +112,25 @@ const mgrMerchantRouter = {
           name: 'MyPaySalesAgreement',
           meta: {
             title: '商户协议',
+            refresh: true // 需要刷新
+          }
+        },
+        {
+          path: 'myCRAs',
+          component: () => import('@/views/merchantmanagement/managemerchant/myCRAs'),
+          name: 'MyCRAs',
+          meta: {
+            title: '渠道申请',
+            refresh: true // 需要刷新
+          }
+        },
+        {
+          path: 'myFRAsreview',
+          component: () => import('@/views/merchantmanagement/managemerchant/myFRAsreview'),
+          name: 'MyFRAsReview',
+          meta: {
+            title: '进件审批',
+            roles: ['plat-manager', 'platmer-manager'],
             refresh: true // 需要刷新
           }
         }
@@ -130,9 +152,31 @@ const mgrMerchantRouter = {
           component: () => import('@/views/merchantmanagement/details/merchantdetail'),
           name: 'MerchantDetail',
           props: true,
-          meta: { title: '企业详情' }
+          meta: { title: '商户详情' }
         }
       ]
+    },
+    {
+      path: 'submeruserlist',
+      component: () => import('@/views/usermanagement/userlist/submeruserlist'),
+      name: 'SubMerUserList',
+      hidden: true,
+      props: true,
+      meta: {
+        title: '下级商户员工帐户',
+        roles: ['plat-salesman', 'platmer-salesman'],
+        refresh: true
+      }
+    },
+    {
+      path: 'createmeruser',
+      component: () => import('@/views/usermanagement/createMerUser'),
+      name: 'CreateMerUser',
+      hidden: true,
+      props: true,
+      meta: {
+        title: '创建帐户'
+      }
     }
   ]
 }

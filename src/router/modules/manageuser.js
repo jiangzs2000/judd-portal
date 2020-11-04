@@ -19,7 +19,7 @@ const manageUserRouter = {
       component: () => import('@/views/usermanagement/createUser'),
       name: 'CreateUser',
       meta: {
-        title: '创建账户'
+        title: '创建帐户'
       }
     },
     {
@@ -29,16 +29,17 @@ const manageUserRouter = {
       props: true,
       hidden: true,
       meta: {
-        title: '账户信息'
+        title: '帐户信息'
       }
     },
     {
       path: 'subuserlist',
-      component: () => import('@/views/usermanagement/subuserlist'),
+      component: () => import('@/views/usermanagement/userlist/subuserlist'),
       name: 'SubUserList',
       meta: {
         title: '下属列表',
-        roles: ['plat-manager', 'platmer-manager']
+        roles: ['plat-manager', 'platmer-manager'],
+        refresh: true
       }
     }
   ]

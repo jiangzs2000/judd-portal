@@ -74,7 +74,13 @@ import { validMobile, validEmail } from '@/utils/validate'
 // import store from '@/store'
 
 export default {
-  name: 'CreateUser',
+  name: 'CreateMerUser',
+  props: {
+    merchantNo: {
+      type: String,
+      default: () => ''
+    }
+  },
   data() {
     const validateMobile = (rule, value, callback) => {
       console.log('value: ', value)
@@ -95,7 +101,7 @@ export default {
       merchantType: '',
       duplicated: '',
       userForm: {
-        merchantNo: this.$store.getters.merchantNo,
+        merchantNo: '',
         userName: '',
         roles: [],
         name: '',
@@ -168,60 +174,77 @@ export default {
     }
   },
   mounted() {
-    console.log('this.userForm.merchantNo: ', this.userForm.merchantNo)
-    getMerchantRole(this.userForm.merchantNo).then(res => {
-      if (res.code === '0000') {
-        this.merchantType = res.data
-      }
-    }).catch(err => {
-      console.log(err)
-    })
-    getUsersUnderSameMerchant(this.merchantNo).then(res => {
-      if (res.code === '0000') {
-        this.parentUsers = []
-        this.parentUsers.push({
-          value: '0000',
-          label: '无上级'
-        })
-        res.data.forEach(element => {
+    console.log('mounted')
+    console.log('this.merchantNo', this.merchantNo)
+    if (this.merchantNo === '') {
+      this.$message({
+        message: '参数丢失，请关闭重试',
+        type: 'error'
+      })
+    } else {
+      this.userForm.merchantNo = this.merchantNo
+      getMerchantRole(this.userForm.merchantNo).then(res => {
+        if (res.code === '0000') {
+          this.merchantType = res.data
+        }
+      }).catch(err => {
+        console.log(err)
+      })
+      getUsersUnderSameMerchant(this.merchantNo).then(res => {
+        if (res.code === '0000') {
+          this.parentUsers = []
           this.parentUsers.push({
-            value: element['id'],
-            label: element['name']
+            value: '0000',
+            label: '无上级'
           })
-        })
-      }
-    }).catch(err => {
-      console.log(err)
-    })
+          res.data.forEach(element => {
+            this.parentUsers.push({
+              value: element['id'],
+              label: element['name']
+            })
+          })
+        }
+      }).catch(err => {
+        console.log(err)
+      })
+    }
     /* if (this.userForm.userName === '') {
       this.$refs.userForm.userName.focus()
     }*/
   },
+  beforeRouteLeave(to, from, next) {
+    to.meta.refresh = false
+    next()
+  },
   methods: {
     onSubmit() {
       console.log('submit!')
-      this.$refs.userForm.validate(valid => {
-        if (valid) {
-          this.loading = true
-          create(this.userForm).then(res => {
-            if (res.code === '0000') {
-              this.$store.dispatch('tagsView/delView', this.$route)
-              this.$router.push({ name: 'UserDetail', params: { userName: this.userForm.userName }})
+      if (this.userForm.merchantNo !== '') {
+        this.$refs.userForm.validate(valid => {
+          if (valid) {
+            this.loading = true
+            create(this.userForm).then(res => {
+              if (res.code === '0000') {
+              // this.$router.push({ name: 'UserDetail', params: { userName: this.userForm.userName }})
+                this.loading = false
+                this.$store.dispatch('tagsView/delView', this.$route)
+                this.$router.back()
+              }
+            }).catch(err => {
+              console.log(err)
               this.loading = false
-              this.$message({
-                message: '帐户创建成功',
-                type: 'success'
-              })
-            }
-          }).catch(err => {
-            console.log(err)
-            this.loading = false
-          })
-        } else {
-          console.log('error submit!!')
-          return false
-        }
-      })
+            })
+          } else {
+            console.log('error submit!!')
+            return false
+          }
+        })
+      } else {
+        this.$message({
+          message: '参数丢失，请关闭重试',
+          type: 'error'
+        })
+      }
     },
     handleCheckAllChange(val, allRoles) {
       console.log('all roles are: ', allRoles)
@@ -249,12 +272,12 @@ export default {
 .app-container {
   ::v-deep .fields-block {
   margin-left: 10px;
-  width: 70%;
+  width: 80%;
   margin-bottom: 0px;
   border-radius: 4px;
   }
   ::v-deep .onePerLine{
-    width: 80%;
+    width: 70%;
   }
   ::v-deep .twoPerLineContent{
     width: 38.7%;

@@ -58,7 +58,7 @@
           <li><span class="field-name">联系人手机： </span><span class="field-value">{{ merchantDetail==null?'':merchantDetail.merchant.mobileNo }}</span></li>
         </ul>
       </div>
-      <el-button type="primary" style="margin-left:35%" @click="onClick">关闭</el-button>
+      <el-button type="primary" style="margin-left:35%" @click="close">关闭</el-button>
     </div>
   </div>
 </template>
@@ -126,16 +126,14 @@ export default {
   mounted() {
   },
   methods: {
-    onClick() {
+    close() {
       // 调用全局挂载的方法
       this.$store.dispatch('tagsView/delView', this.$route)
       this.$router.go(-1)
     }
   },
   beforeRouteLeave(to, from, next) {
-    if (to.name === 'MyMerchants') {
-      to.meta.refresh = false
-    }
+    to.meta.refresh = false
     next()
   }
 }

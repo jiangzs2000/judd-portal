@@ -6,6 +6,7 @@
       <li><span class="field-name">所属商户：</span><span class="field-value">{{ merchantName }}</span></li>
       <li><span class="field-name">电子邮箱：</span><span class="field-value">{{ email }}</span></li>
     </ul>
+    <div style="margin-left: 40%;"><el-button type="primary" @click.native.prevent="close">关  闭</el-button></div>
   </div>
 </template>
 
@@ -41,6 +42,13 @@ export default {
     }).catch(err => {
       console.log(err)
     })
+  },
+  methods: {
+    close() {
+      console.log('close')
+      this.$store.dispatch('tagsView/delView', this.$route)
+      this.$router.push({ name: 'SubUserList' })
+    }
   }
 }
 </script>

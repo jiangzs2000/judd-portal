@@ -24,10 +24,10 @@
           <el-form-item label="通道费承担方：" prop="paySalesAgreement.assumePerson">
             <el-select v-model="requestForm.paySalesAgreement.assumePerson" placeholder="请选择" class="onePerLine">
               <el-option
-                v-for="item in assumePersons"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
+                v-for="(label, key, index) in assumePersons"
+                :key="index"
+                :label="label"
+                :value="key"
               />
             </el-select>
           </el-form-item>
@@ -39,10 +39,10 @@
           <el-form-item label="提现模式：" prop="merchant.withdrawDepositType">
             <el-select v-model="requestForm.merchant.withdrawDepositType" placeholder="请选择" class="onePerLine">
               <el-option
-                v-for="item in withdrawTypes"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
+                v-for="(label, key, index) in withdrawTypes"
+                :key="index"
+                :label="label"
+                :value="key"
               />
             </el-select>
           </el-form-item>
@@ -63,11 +63,11 @@
         <div align="center" class="fields-block">
           <el-row>
             <el-col style="width: 60%">
-              <el-button>重 置</el-button>
+              <el-button type="primary" @click.native.prevent="save">保 存</el-button>
             </el-col>
             <el-col style="width: 20%" />
             <el-col style="width: 20%">
-              <el-button type="primary" @click.native.prevent="onSubmit">提 交</el-button>
+              <el-button type="primary" @click.native.prevent="submit2Review">提 交</el-button>
             </el-col>
           </el-row>
         </div>
@@ -79,11 +79,17 @@
 
 <script>
 import { validMobile } from '@/utils/validate'
-import { registerPerson } from '@/api/merchant'
+import { registerPerson, loadFRARequest } from '@/api/merchant'
 // import store from '@/store'
 
 export default {
   name: 'RegisterPerson',
+  props: {
+    orderNo: {
+      type: String,
+      default: () => ''
+    }
+  },
   data() {
     const validateMobileNo = (rule, value, callback) => {
       if (!validMobile(value)) {
@@ -93,32 +99,17 @@ export default {
       }
     }
     return {
-      withdrawTypes: [
-        {
-          value: '0',
-          label: '手动提现'
-        },
-        {
-          value: '1',
-          label: '自动提现'
-        }
-      ],
-      assumePersons: [
-        {
-          value: 'payer',
-          label: '付款方'
-        },
-        {
-          value: 'remittee',
-          label: '收款方'
-        },
-        {
-          value: 'plat',
-          label: '平台方'
-        }
-      ],
+      withdrawTypes: {
+        '0': '手动提现',
+        '1': '自动提现'
+      },
+      assumePersons: {
+        'payer': '付款方',
+        'remittee': '收款方',
+        'plat': '平台方'
+      },
       requestForm: {
-        channelCode: 'LDLJ',
+        orderNo: '',
         merchant: {
           merchantType: 1,
           merchantName: '',
@@ -131,7 +122,8 @@ export default {
         paySalesAgreement: {
           assumePerson: '',
           serviceChargePercent: '0.5'
-        }
+        },
+        action: ''
       },
       requestRules: {
         merchant: {
@@ -156,30 +148,71 @@ export default {
     }
   },
   mounted() {
+    console.log('mounted, orderNO: ', this.orderNo)
+    if (this.orderNo !== '') {
+      this.requestForm.orderNo = this.orderNo
+      // todo load registration
+      loadFRARequest(this.orderNo).then(res => {
+        if (res.code === '0000') {
+          this.requestForm = res.data
+          this.requestForm.merchant.withdrawDepositType = this.requestForm.merchant.withdrawDepositType.toString()
+        } else {
+          this.$message({
+            message: res.msg,
+            type: 'error'
+          })
+        }
+      }).catch(err => {
+        console.log(err)
+      })
+    }
   },
   methods: {
+    save() {
+      this.requestForm.action = 'save'
+      this.onSubmit()
+    },
+    submit2Review() {
+      this.requestForm.action = 'submit4review'
+      this.onSubmit()
+    },
     onSubmit() {
       console.log('submit!')
+      this.loading = true
       this.requestForm.merchant.idName = this.requestForm.merchant.merchantName
       this.requestForm.merchant.contactName = this.requestForm.merchant.merchantName
       this.$refs.requestForm.validate(valid => {
         if (valid) {
-          this.loading = true
-          registerPerson(this.requestForm).then(res => {
+          return registerPerson(this.requestForm).then(res => {
             if (res.code === '0000') {
-              this.$router.push({ name: 'BindCard', params: { merchantNo: res.data, channelCode: 'LDLJ', merchantType: 1, idName: this.requestForm.merchant.idName, mobileNo: this.requestForm.merchant.mobileNo }})
+              this.requestForm = res.data
+              this.$message({
+                message: res.msg,
+                type: 'success'
+              })
               this.loading = false
             }
           }).catch(err => {
             console.log(err)
-            this.loading = false
           })
         } else {
           console.log('error submit!!')
           return false
         }
       })
+      // this.$store.dispatch('tagsView/delView', this.$route)
+      // this.$router.go(-1)
+      if (this.requestForm.action === 'submit4review') {
+        this.$store.dispatch('tagsView/delView', this.$route)
+        this.$router.back()
+      }
     }
+  },
+  beforeRouteLeave(to, from, next) {
+    if (to.name === 'MyFRAs') {
+      to.meta.refresh = false
+    }
+    next()
   }
 }
 </script>

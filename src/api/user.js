@@ -23,10 +23,11 @@ export function updatePassword(oldPwd, newPwd) {
   })
 }
 
-export function getUsersUnderSameMerchant() {
+export function getUsersUnderSameMerchant(merchantNo) {
   return request({
     url: '/foundation/portal/user/getUsersUnderSameMerchant',
-    method: 'get'
+    method: 'get',
+    params: { merchantNo }
   })
 }
 
@@ -38,6 +39,14 @@ export function create(data) {
   })
 }
 
+export function getSubUsers(pid) {
+  return request({
+    url: '/foundation/portal/user/getSubUsers',
+    method: 'get',
+    params: { pid }
+  })
+}
+
 export function getUserByUserName(userName) {
   return request({
     url: '/foundation/portal/user/getByUserName',
@@ -46,9 +55,9 @@ export function getUserByUserName(userName) {
   })
 }
 
-export function getSubUsers(data) {
+export function getUsersByQuery(data) {
   return request({
-    url: '/foundation/portal/user/getSubUsers',
+    url: '/foundation/portal/user/getUsersByQuery',
     method: 'post',
     data
   })

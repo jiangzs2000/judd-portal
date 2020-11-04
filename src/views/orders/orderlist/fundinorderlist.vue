@@ -52,7 +52,7 @@
         </el-row>
       </el-form>
     </div>
-    <div v-if="pageCount > 0" style="margin:5px;">
+    <div v-if="total > 0" style="margin:5px;">
       <span class="query-stat">查询统计</span><span class="stat-block">交易笔数共：{{ count }}笔</span> <span class="stat-block">交易金额共：{{ totalAmount | F2Y() }}元</span> <span class="stat-block">结算金额共：{{ totalSettleAmt | F2Y() }}元</span>
     </div>
     <div class="table-block">
@@ -121,7 +121,18 @@
           </template>
         </el-table-column>
       </el-table>
-      <paginator v-if="pageCount > 1" :page-count="pageCount" :init-page="requestForm.page" @togglePage="togglePage($event)" />
+      <div style="width:100%;text-align:center;margin-top:15px">
+        <el-pagination
+          v-if="total / requestForm.pageSize > 1"
+          background
+          :current-page="requestForm.page"
+          :page-size="requestForm.pageSize"
+          :page-count="10"
+          layout="total, prev, pager, next, jumper"
+          :total="total"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -129,14 +140,11 @@
 <script>
 import { myMerchants } from '@/api/merchant'
 import { getFundInOrdersByQuery } from '@/api/orders'
-import vuePaginator from 'vue-paginator-simple'
+
 import { PAGE_SIZE } from '@/constants/constants'
 
 export default {
   name: 'FundInOrderList',
-  components: {
-    'paginator': vuePaginator
-  },
   data() {
     return {
       merchantTypeNames: ['', '个人', '个体', '企业'],
@@ -169,7 +177,7 @@ export default {
       merList: [],
       tableData: [],
       count: 0, // 总
-      pageCount: 0, // 总页数
+      total: 0, // 总页数
       totalAmount: 0, // 总
       totalSettleAmt: 0, // 总
       totalChannelCost: 0, // 总
@@ -202,7 +210,7 @@ export default {
     if (this.$route.meta.refresh) {
       this.tableData = []
       this.count = 0
-      this.pageCount = 0
+      this.total = 0
       this.totalAmount = 0
       this.totalSettleAmt = 0
       this.totalChannelCost = 0
@@ -226,7 +234,7 @@ export default {
     this.$bus.$off('closeSelectedTag', this.closeEventHandler)
   },
   methods: {
-    togglePage(indexPage) {
+    handleCurrentChange(indexPage) {
       // 打印出当前页数
       console.log(indexPage)
       this.requestForm.page = indexPage
@@ -235,7 +243,7 @@ export default {
     onSubmit() {
       console.log('onsubmit')
       this.requestForm.page = 1
-      this.pageCount = 0
+      this.total = 0
       this.requestForm.merNos = []
       if (this.requestForm.merNo === '') {
         this.merList.forEach(item => {
@@ -259,8 +267,8 @@ export default {
               }
             })
           })
-          if (res.data.pageCount != null) {
-            this.pageCount = res.data.pageCount
+          if (res.data.count != null) {
+            this.total = res.data.count
             this.requestForm.page = res.data.page
           }
         }

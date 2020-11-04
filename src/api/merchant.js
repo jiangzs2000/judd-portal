@@ -1,10 +1,11 @@
 import request from '@/utils/request'
 // import { param } from '@/utils'
 
-export function getCurrentMerchantType() {
+export function getMerchantRole(merchantNo) {
   return request({
-    url: '/foundation/portal/merchant/getCurrentMerchantType',
-    method: 'get'
+    url: '/foundation/portal/merchant/getMerchantRole',
+    method: 'get',
+    params: { merchantNo }
   })
 }
 
@@ -18,7 +19,7 @@ export function getMerchantByMerchantNo(merchantNo) {
 
 export function registerPerson(data) {
   return request({
-    url: '/foundation/portal/merchant/register/person',
+    url: '/foundation/portal/FRA/register/person',
     method: 'post',
     data
   })
@@ -26,7 +27,7 @@ export function registerPerson(data) {
 
 export function registerIndividual(data) {
   return request({
-    url: '/foundation/portal/merchant/register/individual',
+    url: '/foundation/portal/FRA/register/individual',
     method: 'post',
     data
   })
@@ -34,33 +35,49 @@ export function registerIndividual(data) {
 
 export function registerCompany(data) {
   return request({
-    url: '/foundation/portal/merchant/register/company',
+    url: '/foundation/portal/FRA/register/company',
     method: 'post',
     data
   })
 }
 
-export function bindMerchantCardOrder(data) {
+export function submit4Review(orderNo) {
   return request({
-    url: '/foundation/portal/merchant/bindCard/order',
+    url: '/foundation/portal/FRA/submit4Review',
+    method: 'get',
+    params: { orderNo }
+  })
+}
+
+export function getFRAsByQuery(data) {
+  return request({
+    url: '/foundation/portal/FRA/getFRAsByQuery',
     method: 'post',
     data
   })
 }
 
-export function bindMerchantCardSubmit(data) {
+export function loadFRARequest(orderNo) {
   return request({
-    url: '/foundation/portal/merchant/bindCard/confirm',
-    method: 'post',
-    data
+    url: '/foundation/portal/FRA/loadFRARequest',
+    method: 'get',
+    params: { orderNo }
   })
 }
 
-export function myRAs(data) {
+export function approve(orderNo) {
   return request({
-    url: '/foundation/portal/RA/myregistrationapplications',
-    method: 'post',
-    data
+    url: '/foundation/portal/FRA/approve',
+    method: 'get',
+    params: { orderNo }
+  })
+}
+
+export function reject(orderNo, remark) {
+  return request({
+    url: '/foundation/portal/FRA/reject',
+    method: 'get',
+    params: { orderNo, remark }
   })
 }
 

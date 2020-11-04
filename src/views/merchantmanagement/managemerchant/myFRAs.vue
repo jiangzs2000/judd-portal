@@ -14,17 +14,24 @@
             </el-form-item>
           </el-col>
           <el-col :span="7">
-            <el-form-item prop="state" label="状态：">
-              <el-select v-model="requestForm.state" clearable style="width:100%">
+            <el-form-item prop="state" label="申请状态：">
+              <el-select v-model="requestForm.state" style="width:100%">
                 <el-option
-                  v-for="(item, index) in stateList"
+                  v-for="(label, key, index) in stateList"
                   :key="index"
-                  :label="item.label"
-                  :value="item.value"
+                  :label="label"
+                  :value="key"
                 />
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col :span="6">
+            <el-form-item label="搜索：">
+              <el-input ref="merSearch" v-model="requestForm.merSearch" placeholder="请输入商户名称/商户号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
           <el-col :span="2">
             <el-form-item>
               <el-button type="primary" @click.native.prevent="onSubmit">提 交</el-button>
@@ -38,65 +45,74 @@
         </el-row>
       </el-form>
     </div>
-    <div v-if="total > 0" style="margin:5px;">
-      <span class="query-stat">查询统计</span><span class="stat-block">交易笔数共：{{ count }}笔</span> <span class="stat-block">交易金额共：{{ totalAmount | F2Y() }}元</span>
-    </div>
     <div class="table-block">
       <el-table
         :data="tableData"
         style="width: 100%"
       >
         <el-table-column
-          prop="createTime"
-          label="创建时间"
-        >
-          <template slot-scope="scope">
-            <span>{{ scope.row.createTime | FormatDate('yyyy-MM-dd HH:mm:ss') }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="merOrderNo"
-          label="商户订单号"
-        />
-        <el-table-column
           prop="orderNo"
-          label="平台订单号"
+          label="申请编号"
         />
         <el-table-column
-          prop="merNo"
-          label="发起商户"
+          prop="merchantName"
+          label="商户名称"
         />
         <el-table-column
-          prop="amount"
-          label="金额(元)"
-        >
-          <template slot-scope="scope">
-            <span>{{ scope.row.amount | F2Y() }}</span>
-          </template>
-        </el-table-column>
+          prop="merchantTypeName"
+          label="商户类型"
+        />
         <el-table-column
-          prop="settleAmt"
-          label="结算金额(元)"
-        >
-          <template slot-scope="scope">
-            <span>{{ scope.row.settleAmt | F2Y() }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="routingChannel"
-          label="支付渠道"
+          prop="merchantNo"
+          label="商户编号"
         />
         <el-table-column
           prop="stateName"
-          label="状态"
+          label="申请状态"
         />
         <el-table-column
           fixed="right"
           label="操作"
-          width="100"
+          width="120"
         >
           <template slot-scope="scope">
-            <el-button type="text" size="small" @click="viewDetial(scope.row)">详情</el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="merDetail(scope.row)"
+            >
+              商户详情
+            </el-button>
+            <el-button
+              type="text"
+              size="small"
+              @click.native.prevent="agreementDetail(scope.row)"
+            >
+              协议
+            </el-button>
+            <el-button
+              v-if="scope.row.state !== 'P'"
+              type="text"
+              size="small"
+              @click.native.prevent="edit(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              v-if="scope.row.state !== 'P' && scope.row.state !== 'F' && scope.row.state !== 'W'"
+              type="text"
+              size="small"
+              @click.native.prevent="submit4Review(scope.row)"
+            >
+              提交审核
+            </el-button>
+            <el-tooltip v-if="scope.row.state === 'F'" class="item" effect="light" placement="left-start">
+              <div slot="content" v-html="scope.row.reviewRemark.replace('\n', '<br>')" />
+              <el-button
+                type="text"
+                size="small"
+              >批注</el-button>
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -117,86 +133,46 @@
 </template>
 
 <script>
-import { myMerchants } from '@/api/merchant'
-import { getWithdrawOrdersByQuery } from '@/api/orders'
-
+import { getFRAsByQuery, submit4Review } from '@/api/merchant'
 import { PAGE_SIZE } from '@/constants/constants'
 
 export default {
-  components: {
-    'paginator': vuePaginator
-  },
+  nane: 'MyFRAs',
   data() {
     return {
       merchantTypeNames: ['', '个人', '个体', '企业'],
-      stateList: [
-        {
-          value: 'I',
-          label: '初始'
-        },
-        {
-          value: 'S',
-          label: '支付成功'
-        },
-        {
-          value: 'P',
-          label: '处理中'
-        },
-        {
-          value: 'F',
-          label: '失败'
-        }
-      ],
-      merList: [],
+      stateList: {
+        'I': '初始',
+        'W': '等待审核',
+        'P': '审核通过',
+        'F': '不通过'
+      },
       tableData: [],
-      count: 0, // 总
       total: 0, // 总页数
-      totalAmount: 0, // 总
-      totalPlatFeeAmt: 0,
-      totalChannelFeeAmt: 0,
-      totalChannelRetFeeAmt: 0,
       requestForm: {
+        createUsers: [this.$store.getters.id],
         startDate: '',
         endDate: '',
         state: '',
-        merNo: '',
-        merNos: [],
+        merSearch: '',
         pageSize: PAGE_SIZE,
         page: 1
       }
     }
   },
-  mounted() {
-    myMerchants().then(res => {
-      if (res.code === '0000') {
-        this.merList = res.data.list
-      } else {
-        console.log('myMerchants return ', res.code, res.msg)
-      }
-    }).catch(err => {
-      console.log(err)
-    })
-    // this.query(this.requestForm)
-    console.log('register listener')
-    this.$bus.$on('closeSelectedTag', this.closeEventHandler)
-  },
   activated() {
     console.log('activated')
     if (this.$route.meta.refresh) {
       this.tableData = []
-      this.count = 0
       this.total = 0
-      this.totalAmount = 0
-      this.totalPlatFeeAmt = 0
-      this.totalChannelFeeAmt = 0
-      this.totalChannelRetFeeAmt = 0
       this.requestForm.startDate = ''
       this.requestForm.endDate = ''
       this.requestForm.state = ''
-      this.requestForm.merNo = ''
+      this.requestForm.merSearch = ''
       this.requestForm.page = 1
       this.$route.meta.refresh = false
     }
+    this.query(this.requestForm)
     console.log('register listener')
     this.$bus.$on('closeSelectedTag', this.closeEventHandler)
   },
@@ -209,6 +185,9 @@ export default {
     console.log('deactivated')
     this.$bus.$off('closeSelectedTag', this.closeEventHandler)
   },
+  mounted() {
+    this.query(this.requestForm)
+  },
   methods: {
     handleCurrentChange(indexPage) {
       // 打印出当前页数
@@ -216,33 +195,13 @@ export default {
       this.requestForm.page = indexPage
       this.query(this.requestForm)
     },
-    onSubmit() {
-      console.log('onsubmit')
-      this.requestForm.page = 1
-      this.total = 0
-      this.requestForm.merNos = []
-      if (this.requestForm.merNo === '') {
-        this.merList.forEach(item => {
-          this.requestForm.merNos.push(item.no)
-        })
-      }
-      this.query(this.requestForm)
-    },
     query(data) {
-      getWithdrawOrdersByQuery(data).then(res => {
+      getFRAsByQuery(data).then(res => {
         if (res.code === '0000') {
-          this.tableData = res.data.list == null ? [] : res.data.list
-          this.count = res.data.count
-          this.totalAmount = res.data.totalAmount
-          this.totalPlatFeeAmt = res.data.totalPlatFeeAmt
-          this.totalChannelFeeAmt = res.data.totalChannelFeeAmt
-          this.totalChannelRetFeeAmt = res.data.totalChannelRetFeeAmt
+          this.tableData = res.data.list
           this.tableData.forEach(element => {
-            this.stateList.forEach(state => {
-              if (state.value === element.state) {
-                element.stateName = state.label
-              }
-            })
+            element.merchantTypeName = this.merchantTypeNames[element.merchantType]
+            element.stateName = this.stateList[element.state]
           })
           if (res.data.count != null) {
             this.total = res.data.count
@@ -253,14 +212,54 @@ export default {
         console.log(err)
       })
     },
-    viewDetial(row) {
-      // console.log('row', row)
-      this.$router.push({ name: 'WithdrawOrderDetail', params: { orderNo: row.orderNo }})
+    onSubmit() {
+      console.log('onsubmit')
+      this.requestForm.page = 1
+      this.total = 0
+      this.query(this.requestForm)
+    },
+    merDetail(row) {
+      console.log('agreementDetail')
+      this.$router.push({ name: 'MerchantDetail', params: { merchantNo: row.merchantNo }})
+    },
+    agreementDetail(row) {
+      console.log('agreementDetail')
+    },
+    edit(row) {
+      console.log('edit')
+      switch (row.merchantType) {
+        case 1:
+          this.$router.push({ name: 'RegisterPerson', params: { orderNo: row.orderNo }})
+          break
+        case 2:
+          this.$router.push({ name: 'RegisterIndividual', params: { orderNo: row.orderNo }})
+          break
+        case 3:
+          this.$router.push({ name: 'RegisterCompany', params: { orderNo: row.orderNo }})
+          break
+      }
+    },
+    async submit4Review(row) {
+      console.log('submit4Review')
+      var msg = await submit4Review(row.orderNo).then(res => {
+        if (res.code === '0000') {
+          return res.data
+        } else {
+          return res.msg
+        }
+      }).catch(err => {
+        console.log(err)
+        return '程序异常'
+      })
+      this.$message({
+        message: msg,
+        type: 'success'
+      })
     },
     closeEventHandler(event) {
       // console.log('closeEventHandler', event)
-      if (event.name === 'WithdrawOrderList') {
-        console.log('WithdrawOrderList closed')
+      if (event.name === 'MyFRAs') {
+        console.log('MyFRAs closed')
         this.$route.meta.refresh = true
       }
     }
@@ -268,6 +267,15 @@ export default {
 }
 </script>
 
+<!--style>
+  .el-table .warning-row {
+    background: oldlace;
+  }
+
+  .el-table .success-row {
+    background: #f0f9eb;
+  }
+</style-->
 <style lang="scss" scoped>
 .app-container {
   ::v-deep .requestForm {
@@ -275,15 +283,26 @@ export default {
     margin-left: 0%;
     width: 100%;
   }
-  ::v-deep .query-stat {
-    margin:10px;
-    font-size: 20px;
+
+  ::v-deep .buttons-block {
+  margin-left: 10px;
+  margin-top: 10px;
+  width: 30%;
+  margin-bottom: 0px;
+  background-color: #f0f9eb;
+  border-radius: 4px;
   }
-  ::v-deep .stat-block {
-    margin: 10px;
-    border:1px solid rgb(218, 218, 221);
-    border-radius: 5px;
-    padding: 5px;
+  ::v-deep .onePerLine{
+    width: 80%;
+  }
+  ::v-deep .twoPerLineContent{
+    width: 33%;
+  }
+  ::v-deep .sixPerLineContent{
+    width: 16.7%;
+  }
+  ::v-deep .customWidth{
+    width: 90%;
   }
   ::v-deep .pagination[data-v-7ce5917a]{
     width:100%;

@@ -11,7 +11,8 @@ const state = {
   roles: [],
   id: '',
   userName: '',
-  merchantNo: ''
+  merchantNo: '',
+  pid: ''
 }
 
 const mutations = {
@@ -33,11 +34,14 @@ const mutations = {
   SET_ID: (state, id) => {
     state.id = id
   },
-  SET_USERNAME: (state, userName) =>{
+  SET_USERNAME: (state, userName) => {
     state.userName = userName
   },
   SET_MERCHANTNO: (state, merchantNo) => {
     state.merchantNo = merchantNo
+  },
+  SET_PID: (state, pid) => {
+    state.pid = pid
   }
 }
 
@@ -89,13 +93,15 @@ const actions = {
       var user = JSON.parse(URLSafeBase64.decode(state.token.split('.')[1]))
       console.log(user)
       user.roles = JSON.parse(user.roles)
-      const { id, name, username, roles, merchantno } = user
-      console.log('id, name, username, roles, merchantno', id, name, username, roles, merchantno)
+      const { id, name, username, roles, merchantno, pid } = user
+      console.log('id, name, username, roles, merchantno, pid', id, name, username, roles, merchantno, pid)
 
       commit('SET_ROLES', roles)
       commit('SET_NAME', name)
       commit('SET_ID', id)
       commit('SET_MERCHANTNO', merchantno)
+      commit('SET_USERNAME', username)
+      commit('SET_PID', pid)
       resolve(user)
     })
   },

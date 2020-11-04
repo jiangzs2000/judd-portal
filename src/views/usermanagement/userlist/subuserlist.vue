@@ -15,7 +15,7 @@
           </el-col>
           <el-col :span="6">
             <el-form-item label="搜索：">
-              <el-input ref="merSearch" v-model="requestForm.merSearch" placeholder="请输入员工姓名/帐户名" />
+              <el-input ref="search" v-model="requestForm.search" placeholder="请输入员工姓名/帐户名" />
             </el-form-item>
           </el-col>
           <el-col :span="2">
@@ -54,34 +54,41 @@
         />
         <el-table-column
           prop="email"
-          label="电子邮箱""
+          label="电子邮箱"
         />
       </el-table>
-      <paginator v-if="pageCount > 1" :page-count="pageCount" :init-page="requestForm.page" @togglePage="togglePage($event)" />
+      <div style="width:100%;text-align:center;margin-top:15px">
+        <el-pagination
+          v-if="total / requestForm.pageSize > 1"
+          background
+          :current-page="requestForm.page"
+          :page-size="requestForm.pageSize"
+          :page-count="10"
+          layout="total, prev, pager, next, jumper"
+          :total="total"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { getSubUsers } from '@/api/user'
-import vuePaginator from 'vue-paginator-simple'
+import { getUsersByQuery } from '@/api/user'
 import { PAGE_SIZE } from '@/constants/constants'
 
 export default {
   name: 'SubUserList',
-  components: {
-    'paginator': vuePaginator
-  },
   data() {
     return {
-      merchantTypeNames: ['', '个人', '个体', '企业'],
       tableData: [],
-      pageCount: 0, // 总页数
+      total: 0, // 总页数
       requestForm: {
         startDate: '',
         endDate: '',
         state: '',
-        merSearch: '',
+        pid: this.$store.getters.id,
+        search: '',
         pageSize: PAGE_SIZE,
         page: 1
       }
@@ -91,7 +98,7 @@ export default {
     this.query(this.requestForm)
   },
   methods: {
-    togglePage(indexPage) {
+    handleCurrentChange(indexPage) {
       // 打印出当前页数
       console.log(indexPage)
       this.requestForm.page = indexPage
@@ -100,18 +107,15 @@ export default {
     onSubmit() {
       console.log('onsubmit')
       this.requestForm.page = 1
-      this.pageCount = 0
+      this.total = 0
       this.query(this.requestForm)
     },
     query(data) {
-      getSubUsers(data).then(res => {
+      getUsersByQuery(data).then(res => {
         if (res.code === '0000') {
           this.tableData = res.data.list
-          this.tableData.forEach(element => {
-            element.merchantTypeName = this.merchantTypeNames[element.merchantType]
-          })
-          if (res.data.pageCount != null) {
-            this.pageCount = res.data.pageCount
+          if (res.data.count != null) {
+            this.total = res.data.count
             this.requestForm.page = res.data.page
           }
         }

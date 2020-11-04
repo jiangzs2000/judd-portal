@@ -104,25 +104,33 @@
           </template>
         </el-table-column>
       </el-table>
-      <paginator v-if="pageCount > 1" :page-count="pageCount" :init-page="requestForm.page" @togglePage="togglePage($event)" />
+      <div style="width:100%;text-align:center;margin-top:15px">
+        <el-pagination
+          v-if="total / requestForm.pageSize > 1"
+          background
+          :current-page="requestForm.page"
+          :page-size="requestForm.pageSize"
+          :page-count="10"
+          layout="total, prev, pager, next, jumper"
+          :total="total"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import vuePaginator from 'vue-paginator-simple'
+
 import { myPSAs, update } from '@/api/paysalesagreement'
 import { PAGE_SIZE } from '@/constants/constants'
 export default {
   name: 'MyPaySalesAgreement',
-  components: {
-    'paginator': vuePaginator
-  },
   data() {
     return {
       tableData: [],
       listLoading: true,
-      pageCount: 0, // 总页数
+      total: 0, // 总页数
       requestForm: {
         startDate: '',
         endDate: '',
@@ -137,7 +145,7 @@ export default {
     console.log('activated')
     if (this.$route.meta.refresh) {
       this.tableData = []
-      this.pageCount = 0
+      this.total = 0
       this.requestForm.startDate = ''
       this.requestForm.endDate = ''
       this.requestForm.state = ''
@@ -186,10 +194,10 @@ export default {
     },
     onSubmit() {
       this.requestForm.page = 1
-      this.pageCount = 0
+      this.total = 0
       this.query(this.requestForm)
     },
-    togglePage(indexPage) {
+    handleCurrentChange(indexPage) {
       // 打印出当前页数
       console.log(indexPage)
       this.requestForm.page = indexPage
@@ -206,8 +214,8 @@ export default {
             return v
           })
           this.convertTableData()
-          if (res.data.pageCount != null) {
-            this.pageCount = res.data.pageCount
+          if (res.data.count != null) {
+            this.total = res.data.count
             this.requestForm.page = res.data.page
           }
         } else {

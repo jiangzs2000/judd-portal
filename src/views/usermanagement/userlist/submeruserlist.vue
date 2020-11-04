@@ -13,25 +13,11 @@
               <el-date-picker v-model="requestForm.endDate" type="date" value-format="yyyyMMdd" placeholder="选择日期" style="width:45%" />
             </el-form-item>
           </el-col>
-          <el-col :span="7">
-            <el-form-item prop="state" label="申请状态：">
-              <el-select v-model="requestForm.state" style="width:100%">
-                <el-option
-                  v-for="(item, index) in stateList"
-                  :key="index"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
           <el-col :span="6">
             <el-form-item label="搜索：">
-              <el-input ref="merSearch" v-model="requestForm.merSearch" placeholder="请输入商户名称/商户号" />
+              <el-input ref="search" v-model="requestForm.search" placeholder="请输入员工姓名/帐户名" />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row>
           <el-col :span="2">
             <el-form-item>
               <el-button type="primary" @click.native.prevent="onSubmit">提 交</el-button>
@@ -51,104 +37,106 @@
         style="width: 100%"
       >
         <el-table-column
-          prop="orderNo"
-          label="申请编号"
+          prop="createTime"
+          label="创建时间"
+        >
+          <template slot-scope="scope">
+            <span>{{ scope.row.createTime | FormatDate('yyyy-MM-dd HH:mm:ss') }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="name"
+          label="姓名"
         />
         <el-table-column
-          prop="channelCode"
-          label="渠道编号"
+          prop="userName"
+          label="帐户名"
         />
         <el-table-column
-          prop="merchantName"
-          label="商户名称"
-        />
-        <el-table-column
-          prop="merchantTypeName"
-          label="商户类型"
-        />
-        <el-table-column
-          prop="merchantNo"
-          label="商户编号"
-        />
-        <el-table-column
-          prop="stateName"
-          label="申请状态"
+          prop="email"
+          label="电子邮箱"
         />
       </el-table>
-      <paginator v-if="pageCount > 1" :page-count="pageCount" :init-page="requestForm.page" @togglePage="togglePage($event)" />
+      <div><p /></div>
+      <el-button icon="el-icon-plus" @click="createUser" />
+      <div style="width:100%;text-align:center;margin-top:15px">
+        <el-pagination
+          v-if="total / requestForm.pageSize > 1"
+          background
+          :current-page="requestForm.page"
+          :page-size="requestForm.pageSize"
+          :page-count="10"
+          layout="total, prev, pager, next, jumper"
+          :total="total"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { myRAs } from '@/api/merchant'
-import vuePaginator from 'vue-paginator-simple'
+import { getUsersByQuery } from '@/api/user'
 import { PAGE_SIZE } from '@/constants/constants'
 
 export default {
-  nane: 'MyRegistrationApplications',
-  components: {
-    'paginator': vuePaginator
+  name: 'SubMerUserList',
+  props: {
+    merchantNo: {
+      type: String,
+      default: () => ''
+    }
   },
   data() {
     return {
-      merchantTypeNames: ['', '个人', '个体', '企业'],
-      stateNames: ['', '初始', '基础信息审核成功', '资料上传待审核', '资料通过', '资料通过、绑卡成功', '', '', '', '入网失败'],
-      stateList: [
-        {
-          value: '1',
-          label: '初始'
-        },
-        {
-          value: '2',
-          label: '基础信息审核成功'
-        },
-        {
-          value: '3',
-          label: '资料上传待审核'
-        },
-        {
-          value: '4',
-          label: '资料通过'
-        },
-        {
-          value: '5',
-          label: '资料通过、绑卡成功'
-        },
-        {
-          value: '9',
-          label: '入网失败'
-        }
-      ],
       tableData: [],
-      pageCount: 0, // 总页数
+      total: 0, // 总页数
       requestForm: {
+        merchantNo: '',
         startDate: '',
         endDate: '',
         state: '',
-        merSearch: '',
+        search: '',
         pageSize: PAGE_SIZE,
         page: 1
       }
     }
   },
+  mounted() {
+    console.log('mounted')
+    console.log('merchantNo: ', this.merchantNo)
+  },
   activated() {
     console.log('activated')
     if (this.$route.meta.refresh) {
       this.tableData = []
-      this.pageCount = 0
+      this.total = 0
       this.requestForm.startDate = ''
       this.requestForm.endDate = ''
       this.requestForm.state = ''
-      this.requestForm.merSearch = ''
+      this.requestForm.search = ''
       this.requestForm.page = 1
       this.$route.meta.refresh = false
     }
-    this.query(this.requestForm)
+    console.log('this.merchantNo: ', this.merchantNo)
+    console.log('this.requestForm.merchantNo: ', this.requestForm.merchantNo)
+    if (this.merchantNo !== '') {
+      this.requestForm.merchantNo = this.merchantNo
+      this.query(this.requestForm)
+    } else if (this.requestForm.merchantNo !== '') { // 通过 this.$router.back()或this.$router.go(-1)回到本页，页内参数不初始化
+      console.log('go(-1) or back()')
+      this.query(this.requestForm)
+    } else {
+      this.$message({
+        message: '没有收到传入参数',
+        type: 'error'
+      })
+    }
     console.log('register listener')
     this.$bus.$on('closeSelectedTag', this.closeEventHandler)
   },
   beforeRouteLeave(to, from, next) {
+    console.log('merchantNo: ', this.merchantNo)
     console.log('beforeRouteLeave', to)
     this.$bus.$off('closeSelectedTag', this.closeEventHandler)
     next()
@@ -157,26 +145,25 @@ export default {
     console.log('deactivated')
     this.$bus.$off('closeSelectedTag', this.closeEventHandler)
   },
-  mounted() {
-    this.query(this.requestForm)
-  },
   methods: {
-    togglePage(indexPage) {
+    handleCurrentChange(indexPage) {
       // 打印出当前页数
       console.log(indexPage)
       this.requestForm.page = indexPage
       this.query(this.requestForm)
     },
+    onSubmit() {
+      console.log('onsubmit')
+      this.requestForm.page = 1
+      this.total = 0
+      this.query(this.requestForm)
+    },
     query(data) {
-      myRAs(data).then(res => {
+      getUsersByQuery(data).then(res => {
         if (res.code === '0000') {
           this.tableData = res.data.list
-          this.tableData.forEach(element => {
-            element.merchantTypeName = this.merchantTypeNames[element.merchantType]
-            element.stateName = this.stateNames[element.state]
-          })
-          if (res.data.pageCount != null) {
-            this.pageCount = res.data.pageCount
+          if (res.data.count != null) {
+            this.total = res.data.count
             this.requestForm.page = res.data.page
           }
         }
@@ -184,59 +171,27 @@ export default {
         console.log(err)
       })
     },
-    onSubmit() {
-      console.log('onsubmit')
-      this.requestForm.page = 1
-      this.pageCount = 0
-      this.query(this.requestForm)
-    },
     closeEventHandler(event) {
       // console.log('closeEventHandler', event)
-      if (event.name === 'MyRegistrationApplications') {
-        console.log('MyRegistrationApplications closed')
+      if (event.name === 'SubMerUserList') {
+        console.log('SubMerUserList closed')
         this.$route.meta.refresh = true
       }
+    },
+    createUser() {
+      console.log('createuser')
+      this.$router.push({ name: 'CreateMerUser', params: { merchantNo: this.requestForm.merchantNo }})
     }
   }
 }
 </script>
 
-<!--style>
-  .el-table .warning-row {
-    background: oldlace;
-  }
-
-  .el-table .success-row {
-    background: #f0f9eb;
-  }
-</style-->
 <style lang="scss" scoped>
 .app-container {
   ::v-deep .requestForm {
     position: relative;
     margin-left: 0%;
     width: 100%;
-  }
-
-  ::v-deep .buttons-block {
-  margin-left: 10px;
-  margin-top: 10px;
-  width: 30%;
-  margin-bottom: 0px;
-  background-color: #f0f9eb;
-  border-radius: 4px;
-  }
-  ::v-deep .onePerLine{
-    width: 80%;
-  }
-  ::v-deep .twoPerLineContent{
-    width: 33%;
-  }
-  ::v-deep .sixPerLineContent{
-    width: 16.7%;
-  }
-  ::v-deep .customWidth{
-    width: 90%;
   }
   ::v-deep .pagination[data-v-7ce5917a]{
     width:100%;
