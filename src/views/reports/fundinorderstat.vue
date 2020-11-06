@@ -62,7 +62,7 @@
 import { subMerchants } from '@/api/merchant'
 import { statFundinOrderByQuery } from '@/api/orders'
 import echarts from 'echarts'
-import store from '@/store'
+// import store from '@/store'
 
 export default {
   name: 'FundInOrderList',
@@ -309,7 +309,7 @@ export default {
   },
   mounted() {
     console.log('mounted')
-    const { merchantno } = store.dispatch('user/getInfo')
+    // const { merchantno } = store.dispatch('user/getInfo')
     this.requestForm.merNo =
     subMerchants().then(res => {
       if (res.code === '0000') {
